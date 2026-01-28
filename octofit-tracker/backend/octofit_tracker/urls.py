@@ -14,8 +14,13 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
+
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from django.shortcuts import redirect
+import os
 from . import views
 
 router = DefaultRouter()
@@ -25,8 +30,24 @@ router.register(r'activities', views.ActivityViewSet)
 router.register(r'leaderboard', views.LeaderboardViewSet)
 router.register(r'workouts', views.WorkoutViewSet)
 
+@api_view(['GET'])
+def codespace_api_root(request, format=None):
+    CODESPACE_NAME = os.environ.get('CODESPACE_NAME')
+    if CODESPACE_NAME:
+        base_url = f"https://{CODESPACE_NAME}-8000.app.github.dev/api/"
+    else:
+        base_url = request.build_absolute_uri('/api/')
+    return Response({
+        'users': base_url + 'users/',
+        'teams': base_url + 'teams/',
+        'activities': base_url + 'activities/',
+        'leaderboard': base_url + 'leaderboard/',
+        'workouts': base_url + 'workouts/',
+    })
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', views.api_root, name='api-root'),
-    path('', include(router.urls)),
+    path('api/', codespace_api_root, name='api-root'),
+    path('api/', include(router.urls)),
+    re_path(r'^$', lambda request: redirect('/api/', permanent=False)),
 ]
